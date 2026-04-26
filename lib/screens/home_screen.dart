@@ -68,6 +68,79 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _showFilterModal() {
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          backgroundColor: Colors.grey[900],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            "Filtro de Nota",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "Nota mínima: ${_minRating.toInt()}",
+                style: const TextStyle(
+                  color: Colors.purpleAccent,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Slider(
+                value: _minRating,
+                min: 0,
+                max: 100,
+                divisions: 100,
+                label: _minRating.toInt().toString(),
+                activeColor: Colors.purpleAccent,
+                inactiveColor: Colors.grey[700],
+                onChanged: (val) {
+                  setStateDialog(() {
+                    _minRating = val;
+                  });
+                  setState(() {});
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "Cancelar",
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {});
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purpleAccent,
+              ),
+              child: const Text(
+                "Aplicar",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -96,11 +169,15 @@ class _HomeScreenState extends State<HomeScreen> {
               controller: _searchController,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                hintText: "Buscar jogo...",
+                hintText: "Busca",
                 hintStyle: const TextStyle(color: Colors.grey),
                 prefixIcon: const Icon(
                   Icons.search,
                   color: Colors.purpleAccent,
+                ),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.filter_list, color: Colors.purpleAccent),
+                  onPressed: _showFilterModal,
                 ),
                 filled: true,
                 fillColor: Colors.grey[850],
@@ -110,24 +187,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               onSubmitted: (value) => _fetchGames(query: value),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 15.0),
-            child: Column(
-              children: [
-                Text(
-                  "Nota mínima: ${_minRating.toInt()}",
-                  style: const TextStyle(color: Colors.white),
-                ),
-                Slider(
-                  value: _minRating,
-                  min: 0,
-                  max: 100,
-                  activeColor: Colors.purpleAccent,
-                  onChanged: (val) => setState(() => _minRating = val),
-                ),
-              ],
             ),
           ),
           Expanded(
