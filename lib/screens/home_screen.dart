@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../models/game_model.dart';
+import '../services/api_service.dart';
 import 'details_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -12,7 +11,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final String _apiKey = "ef722b1e87a94f6c96fa738a6bfa9100";
+  final ApiService _apiService = ApiService();
   List<Game> _games = [];
   bool _isLoading = false;
   double _minRating = 0;
@@ -25,23 +24,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fetchGames({String query = ""}) async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
-    String url = "https://api.rawg.io/api/games?key=$_apiKey&page_size=20";
-    if (query.isNotEmpty) url += "&search=$query";
-
     try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List results = data['results'];
-        setState(() {
-          _games = results.map((j) => Game.fromJson(j)).toList();
-        });
+      final games = query.isEmpty
+          ? await _apiService.fetchPopularGames()
+          : await _apiService.fetchGamesBySearch(query);
+      if (mounted) {
+        setState(() => _games = games);
       }
     } catch (e) {
       debugPrint("Erro: $e");
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -54,20 +51,19 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
-    final url = "https://api.rawg.io/api/games/${game.id}?key=$_apiKey";
     try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        game.description =
-            data['description_raw'] ?? "Sem descrição disponível.";
-        Navigator.pop(context);
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => DetailsScreen(game: game)),
-        );
-      }
+      final data = await _apiService.fetchGameDetails(game.id);
+      if (!mounted) return;
+      
+      game.description =
+          data['description_raw'] ?? "Sem descrição disponível.";
+      Navigator.pop(context);
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => DetailsScreen(game: game)),
+      );
     } catch (e) {
+      if (!mounted) return;
       Navigator.pop(context);
     }
   }
