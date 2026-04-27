@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../models/game_model.dart';
+import '../services/api_service.dart';
 import 'details_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -12,7 +11,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final String _apiKey = "ef722b1e87a94f6c96fa738a6bfa9100";
+  final ApiService _apiService = ApiService();
   List<Game> _games = [];
   bool _isLoading = false;
   double _minRating = 0;
@@ -25,23 +24,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fetchGames({String query = ""}) async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
-    String url = "https://api.rawg.io/api/games?key=$_apiKey&page_size=20";
-    if (query.isNotEmpty) url += "&search=$query";
-
     try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List results = data['results'];
-        setState(() {
-          _games = results.map((j) => Game.fromJson(j)).toList();
-        });
+      final games = query.isEmpty
+          ? await _apiService.fetchPopularGames()
+          : await _apiService.fetchGamesBySearch(query);
+      if (mounted) {
+        setState(() => _games = games);
       }
     } catch (e) {
       debugPrint("Erro: $e");
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -54,22 +51,94 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
-    final url = "https://api.rawg.io/api/games/${game.id}?key=$_apiKey";
     try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        game.description =
-            data['description_raw'] ?? "Sem descrição disponível.";
-        Navigator.pop(context);
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => DetailsScreen(game: game)),
-        );
-      }
+      final data = await _apiService.fetchGameDetails(game.id);
+      if (!mounted) return;
+      
+      game.description =
+          data['description_raw'] ?? "Sem descrição disponível.";
+      Navigator.pop(context);
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => DetailsScreen(game: game)),
+      );
     } catch (e) {
+      if (!mounted) return;
       Navigator.pop(context);
     }
+  }
+
+  void _showFilterModal() {
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          backgroundColor: Colors.grey[900],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            "Filtro de Nota",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "Nota mínima: ${_minRating.toInt()}",
+                style: const TextStyle(
+                  color: Colors.purpleAccent,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Slider(
+                value: _minRating,
+                min: 0,
+                max: 100,
+                divisions: 100,
+                label: _minRating.toInt().toString(),
+                activeColor: Colors.purpleAccent,
+                inactiveColor: Colors.grey[700],
+                onChanged: (val) {
+                  setStateDialog(() {
+                    _minRating = val;
+                  });
+                  setState(() {});
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "Cancelar",
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {});
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purpleAccent,
+              ),
+              child: const Text(
+                "Aplicar",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -100,11 +169,15 @@ class _HomeScreenState extends State<HomeScreen> {
               controller: _searchController,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                hintText: "Buscar jogo...",
+                hintText: "Busca",
                 hintStyle: const TextStyle(color: Colors.grey),
                 prefixIcon: const Icon(
                   Icons.search,
                   color: Colors.purpleAccent,
+                ),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.filter_list, color: Colors.purpleAccent),
+                  onPressed: _showFilterModal,
                 ),
                 filled: true,
                 fillColor: Colors.grey[850],
@@ -114,24 +187,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               onSubmitted: (value) => _fetchGames(query: value),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 15.0),
-            child: Column(
-              children: [
-                Text(
-                  "Nota mínima: ${_minRating.toInt()}",
-                  style: const TextStyle(color: Colors.white),
-                ),
-                Slider(
-                  value: _minRating,
-                  min: 0,
-                  max: 100,
-                  activeColor: Colors.purpleAccent,
-                  onChanged: (val) => setState(() => _minRating = val),
-                ),
-              ],
             ),
           ),
           Expanded(
