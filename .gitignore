@@ -14,7 +14,10 @@ migrate_working_dir/
 
 # Environment variables
 .env
-
+# Environment variables
+# Esta linha impede que suas chaves de API sejam enviadas para o GitHub
+.env.secret
+.env.local
 # IntelliJ related
 *.iml
 *.ipr
