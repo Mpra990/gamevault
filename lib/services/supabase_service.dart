@@ -16,10 +16,7 @@ class SupabaseService {
     final url = dotenv.get('SUPABASE_URL');
     final anonKey = dotenv.get('SUPABASE_ANON_KEY');
 
-    await Supabase.initialize(
-      url: url,
-      anonKey: anonKey,
-    );
+    await Supabase.initialize(url: url, anonKey: anonKey);
 
     _client = Supabase.instance.client;
   }
@@ -27,9 +24,16 @@ class SupabaseService {
   SupabaseClient get client => _client;
 
   // ============================================================
-  // USUARIOS
+  // USUÁRIOS (Sincronizado com Auth)
   // ============================================================
-  Future<AppUser?> getUserById(String id) async {
+
+  // Retorna o ID do usuário que está logado no momento
+  String? get currentUserId => _client.auth.currentUser?.id;
+
+  Future<AppUser?> getUserProfile() async {
+    final id = currentUserId;
+    if (id == null) return null;
+
     try {
       final response = await _client
           .from('usuarios')
@@ -42,45 +46,95 @@ class SupabaseService {
     }
   }
 
-  Future<AppUser> createUser(String email, String senhaHash, {String? username, String? avatarUrl}) async {
-    final response = await _client
+  // Atualiza perfil (Username/Avatar)
+  Future<void> updateUserProfile({String? username, String? avatarUrl}) async {
+    final id = currentUserId;
+    if (id == null) return;
+
+    await _client
         .from('usuarios')
-        .insert({
-          'email': email,
-          'senha_hash': senhaHash,
+        .update({
           'username': username,
           'avatar_url': avatarUrl,
+          'atualizado_em': DateTime.now().toIso8601String(),
         })
+        .eq('id', id);
+  }
+
+  // ============================================================
+  // FAVORITOS (Nova Tabela)
+  // ============================================================
+
+  Future<void> toggleFavorite(int gameId, String name, String? image) async {
+    final uid = currentUserId;
+    if (uid == null) return;
+
+    final isFav = await isGameFavorite(gameId);
+
+    if (isFav) {
+      await _client
+          .from('favoritos')
+          .delete()
+          .eq('user_id', uid)
+          .eq('game_id', gameId);
+    } else {
+      await _client.from('favoritos').insert({
+        'user_id': uid,
+        'game_id': gameId,
+        'game_name': name,
+        'game_image': image,
+      });
+    }
+  }
+
+  Future<bool> isGameFavorite(int gameId) async {
+    final uid = currentUserId;
+    if (uid == null) return false;
+
+    final response = await _client
+        .from('favoritos')
         .select()
-        .single();
-    return AppUser.fromJson(response);
+        .eq('user_id', uid)
+        .eq('game_id', gameId);
+
+    return (response as List).isNotEmpty;
   }
 
-  Future<void> updateUser(String id, {String? username, String? avatarUrl}) async {
-    await _client.from('usuarios').update({
-      'username': username,
-      'avatar_url': avatarUrl,
-      'atualizado_em': DateTime.now().toIso8601String(),
-    }).eq('id', id);
+  Future<List<dynamic>> getUserFavorites() async {
+    final uid = currentUserId;
+    if (uid == null) return [];
+
+    return await _client
+        .from('favoritos')
+        .select()
+        .eq('user_id', uid)
+        .order('created_at', ascending: false);
   }
 
   // ============================================================
-  // STATUS JOGO
+  // STATUS JOGO (Jogando, Zerado, etc)
   // ============================================================
-  Future<List<StatusJogo>> getUserGameStatus(String usuarioId) async {
+
+  Future<List<StatusJogo>> getUserGameStatus() async {
+    final uid = currentUserId;
+    if (uid == null) return [];
+
     final response = await _client
         .from('status_jogo')
         .select()
-        .eq('usuario_id', usuarioId);
+        .eq('usuario_id', uid);
     return (response as List).map((e) => StatusJogo.fromJson(e)).toList();
   }
 
-  Future<StatusJogo?> getGameStatus(String usuarioId, int rawgGameId) async {
+  Future<StatusJogo?> getGameStatus(int rawgGameId) async {
+    final uid = currentUserId;
+    if (uid == null) return null;
+
     try {
       final response = await _client
           .from('status_jogo')
           .select()
-          .eq('usuario_id', usuarioId)
+          .eq('usuario_id', uid)
           .eq('rawg_game_id', rawgGameId)
           .single();
       return StatusJogo.fromJson(response);
@@ -90,183 +144,69 @@ class SupabaseService {
   }
 
   Future<StatusJogo> updateGameStatus(
-    String usuarioId,
     int rawgGameId,
     StatusJogoEnum status, {
     String? rawgSlug,
   }) async {
-    try {
-      // Tenta atualizar se já existe
-      final response = await _client
-          .from('status_jogo')
-          .update({
-            'status': status.value,
-            'rawg_slug': rawgSlug,
-            'atualizado_em': DateTime.now().toIso8601String(),
-          })
-          .eq('usuario_id', usuarioId)
-          .eq('rawg_game_id', rawgGameId)
-          .select()
-          .single();
-      return StatusJogo.fromJson(response);
-    } catch (e) {
-      // Se não existe, cria
-      final response = await _client
-          .from('status_jogo')
-          .insert({
-            'usuario_id': usuarioId,
-            'rawg_game_id': rawgGameId,
-            'rawg_slug': rawgSlug,
-            'status': status.value,
-          })
-          .select()
-          .single();
-      return StatusJogo.fromJson(response);
-    }
-  }
+    final uid = currentUserId;
+    if (uid == null) throw Exception("Usuário não autenticado");
 
-  Future<void> deleteGameStatus(String usuarioId, int rawgGameId) async {
-    await _client
-        .from('status_jogo')
-        .delete()
-        .eq('usuario_id', usuarioId)
-        .eq('rawg_game_id', rawgGameId);
-  }
+    final data = {
+      'usuario_id': uid,
+      'rawg_game_id': rawgGameId,
+      'rawg_slug': rawgSlug,
+      'status': status.value,
+      'atualizado_em': DateTime.now().toIso8601String(),
+    };
 
-  Future<List<StatusJogo>> getGamesByStatus(String usuarioId, StatusJogoEnum status) async {
     final response = await _client
         .from('status_jogo')
-        .select()
-        .eq('usuario_id', usuarioId)
-        .eq('status', status.value);
-    return (response as List).map((e) => StatusJogo.fromJson(e)).toList();
-  }
-
-  // ============================================================
-  // WISHLIST
-  // ============================================================
-  Future<List<Wishlist>> getUserWishlist(String usuarioId) async {
-    final response = await _client
-        .from('wishlist')
-        .select()
-        .eq('usuario_id', usuarioId)
-        .order('adicionado_em', ascending: false);
-    return (response as List).map((e) => Wishlist.fromJson(e)).toList();
-  }
-
-  Future<bool> isGameInWishlist(String usuarioId, int rawgGameId) async {
-    try {
-      await _client
-          .from('wishlist')
-          .select()
-          .eq('usuario_id', usuarioId)
-          .eq('rawg_game_id', rawgGameId)
-          .single();
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<Wishlist> addToWishlist(String usuarioId, int rawgGameId, {String? rawgSlug}) async {
-    final response = await _client
-        .from('wishlist')
-        .insert({
-          'usuario_id': usuarioId,
-          'rawg_game_id': rawgGameId,
-          'rawg_slug': rawgSlug,
-        })
+        .upsert(data) // Upsert faz o Update ou Insert automaticamente
         .select()
         .single();
-    return Wishlist.fromJson(response);
-  }
 
-  Future<void> removeFromWishlist(String usuarioId, int rawgGameId) async {
-    await _client
-        .from('wishlist')
-        .delete()
-        .eq('usuario_id', usuarioId)
-        .eq('rawg_game_id', rawgGameId);
+    return StatusJogo.fromJson(response);
   }
 
   // ============================================================
-  // AVALIACOES
+  // AVALIAÇÕES
   // ============================================================
-  Future<List<Avaliacao>> getUserAvaliacoes(String usuarioId) async {
-    final response = await _client
-        .from('avaliacoes')
-        .select()
-        .eq('usuario_id', usuarioId)
-        .order('criado_em', ascending: false);
-    return (response as List).map((e) => Avaliacao.fromJson(e)).toList();
-  }
-
-  Future<Avaliacao?> getGameAvaliacao(String usuarioId, int rawgGameId) async {
-    try {
-      final response = await _client
-          .from('avaliacoes')
-          .select()
-          .eq('usuario_id', usuarioId)
-          .eq('rawg_game_id', rawgGameId)
-          .single();
-      return Avaliacao.fromJson(response);
-    } catch (e) {
-      return null;
-    }
-  }
 
   Future<Avaliacao> upsertAvaliacao(
-    String usuarioId,
     int rawgGameId, {
     required int nota,
     String? comentario,
     String? rawgSlug,
   }) async {
-    try {
-      // Tenta atualizar
-      final response = await _client
-          .from('avaliacoes')
-          .update({
-            'nota': nota,
-            'comentario': comentario,
-            'atualizado_em': DateTime.now().toIso8601String(),
-          })
-          .eq('usuario_id', usuarioId)
-          .eq('rawg_game_id', rawgGameId)
-          .select()
-          .single();
-      return Avaliacao.fromJson(response);
-    } catch (e) {
-      // Se não existe, cria
-      final response = await _client
-          .from('avaliacoes')
-          .insert({
-            'usuario_id': usuarioId,
-            'rawg_game_id': rawgGameId,
-            'nota': nota,
-            'comentario': comentario,
-            'rawg_slug': rawgSlug,
-          })
-          .select()
-          .single();
-      return Avaliacao.fromJson(response);
-    }
+    final uid = currentUserId;
+    if (uid == null) throw Exception("Usuário não autenticado");
+
+    final data = {
+      'usuario_id': uid,
+      'rawg_game_id': rawgGameId,
+      'nota': nota,
+      'comentario': comentario,
+      'rawg_slug': rawgSlug,
+      'atualizado_em': DateTime.now().toIso8601String(),
+    };
+
+    final response = await _client
+        .from('avaliacoes')
+        .upsert(data)
+        .select()
+        .single();
+
+    return Avaliacao.fromJson(response);
   }
 
-  Future<void> deleteAvaliacao(String usuarioId, int rawgGameId) async {
+  Future<void> deleteAvaliacao(int rawgGameId) async {
+    final uid = currentUserId;
+    if (uid == null) return;
+
     await _client
         .from('avaliacoes')
         .delete()
-        .eq('usuario_id', usuarioId)
+        .eq('usuario_id', uid)
         .eq('rawg_game_id', rawgGameId);
-  }
-
-  Future<List<Avaliacao>> getGameAvaliacoes(int rawgGameId) async {
-    final response = await _client
-        .from('avaliacoes')
-        .select()
-        .eq('rawg_game_id', rawgGameId)
-        .order('criado_em', ascending: false);
-    return (response as List).map((e) => Avaliacao.fromJson(e)).toList();
   }
 }

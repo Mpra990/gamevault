@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/game_model.dart';
 import '../services/api_service.dart';
+import '../widgets/favorite_button.dart';
 import 'details_screen.dart';
+import 'profile_screen.dart'; // IMPORT NOVO
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -54,9 +56,8 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final data = await _apiService.fetchGameDetails(game.id);
       if (!mounted) return;
-      
-      game.description =
-          data['description_raw'] ?? "Sem descrição disponível.";
+
+      game.description = data['description_raw'] ?? "Sem descrição disponível.";
       Navigator.pop(context);
       Navigator.push(
         context,
@@ -159,6 +160,16 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         backgroundColor: Colors.black,
         centerTitle: true,
+        // BOTÃO DE PERFIL ADICIONADO AQUI
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person_outline, color: Colors.purpleAccent),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ProfileScreen()),
+            ),
+          ),
+        ],
       ),
       backgroundColor: Colors.grey[900],
       body: Column(
@@ -176,7 +187,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.purpleAccent,
                 ),
                 suffixIcon: IconButton(
-                  icon: const Icon(Icons.filter_list, color: Colors.purpleAccent),
+                  icon: const Icon(
+                    Icons.filter_list,
+                    color: Colors.purpleAccent,
+                  ),
                   onPressed: _showFilterModal,
                 ),
                 filled: true,
@@ -201,8 +215,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          mainAxisSpacing: 12,
                           crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
                           childAspectRatio: 0.8,
                         ),
                     itemCount: filteredGames.length,
@@ -227,6 +241,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                       fit: BoxFit.cover,
                                       width: double.infinity,
                                       height: double.infinity,
+                                    ),
+                                    Positioned(
+                                      top: 4,
+                                      left: 4,
+                                      child: FavoriteButton(
+                                        gameId: game.id,
+                                        name: game.name,
+                                        image: game.backgroundImage,
+                                      ),
                                     ),
                                     Positioned(
                                       top: 8,
