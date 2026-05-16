@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../constants/game_status.dart';
 import '../services/api_service.dart';
-import '../services/supabase_service.dart';
 
 class DetailsScreen extends StatefulWidget {
   final int gameId;
@@ -14,7 +12,6 @@ class DetailsScreen extends StatefulWidget {
 class _DetailsScreenState extends State<DetailsScreen> {
   final ApiService _apiService = ApiService();
   final SupabaseClient _supabase = Supabase.instance.client;
-  final SupabaseService _supabaseService = SupabaseService();
   
   Map<String, dynamic>? _gameDetails;
   bool _isLoading = true;
@@ -93,13 +90,16 @@ class _DetailsScreenState extends State<DetailsScreen> {
         await _supabase.from('biblioteca').delete().eq('user_id', user.id).eq('game_id', widget.gameId);
         setState(() => _userStars = 0);
       } else {
-        await _supabaseService.updateGameStatus(
-          widget.gameId.toString(),
-          status,
-          _gameDetails!['background_image'] ?? '',
-          userRating: _userStars > 0 ? _userStars : null,
-        );
-
+        // Upsert inteligente
+        await _supabase.from('biblioteca').upsert({
+          'user_id': user.id, 
+          'game_id': widget.gameId,
+          'game_name': _gameDetails!['name'] ?? 'Sem nome', 
+          'game_image': _gameDetails!['background_image'] ?? '', 
+          'status': status, 
+          'user_rating': _userStars > 0 ? _userStars : null
+        }, onConflict: 'user_id, game_id');
+        
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Salvo em: $status ✅"), backgroundColor: const Color(0xFF00E054)));
       }
     } catch (e) {
@@ -125,12 +125,15 @@ class _DetailsScreenState extends State<DetailsScreen> {
     }
     setState(() => _userStars = stars);
     try {
-      await _supabaseService.updateGameStatus(
-        widget.gameId.toString(),
-        _currentStatus,
-        _gameDetails!['background_image'] ?? '',
-        userRating: stars,
-      );
+      // Upsert inteligente para as estrelas
+      await _supabase.from('biblioteca').upsert({
+        'user_id': user.id, 
+        'game_id': widget.gameId,
+        'game_name': _gameDetails!['name'] ?? 'Sem nome', 
+        'game_image': _gameDetails!['background_image'] ?? '', 
+        'status': _currentStatus, 
+        'user_rating': stars
+      }, onConflict: 'user_id, game_id');
       
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Avaliação salva! ⭐"), backgroundColor: Color(0xFF00E054)));
     } catch (e) {
@@ -192,9 +195,9 @@ class _DetailsScreenState extends State<DetailsScreen> {
                     dropdownColor: const Color(0xFF1C2228),
                     items: const [
                       DropdownMenuItem(value: 'Nenhum', child: Text('Adicionar à Lista...')),
-                      DropdownMenuItem(value: GameStatus.jaJoguei, child: Text('✅ ${GameStatus.jaJoguei}')),
-                      DropdownMenuItem(value: GameStatus.pretendeJogar, child: Text('🎯 ${GameStatus.pretendeJogar}')),
-                      DropdownMenuItem(value: GameStatus.dropado, child: Text('❌ ${GameStatus.dropado}')),
+                      DropdownMenuItem(value: 'Já joguei', child: Text('✅ Já joguei')),
+                      DropdownMenuItem(value: 'Pretendo jogar', child: Text('🎯 Pretendo jogar')),
+                      DropdownMenuItem(value: 'Dropado', child: Text('❌ Dropado')),
                     ],
                     onChanged: (val) => _updateStatus(val ?? 'Nenhum'),
                   ),
