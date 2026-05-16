@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../constants/game_status.dart';
+import '../services/supabase_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -10,6 +11,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateMixin {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseService _supabaseService = SupabaseService();
   late TabController _tabController;
   
   List<Map<String, dynamic>> _topFavorites = [];
@@ -45,14 +47,16 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
         _username = user.email?.split('@')[0].toUpperCase() ?? "PLAYER";
       }
       final favoritesData = await _supabase.from('favoritos').select().eq('user_id', user.id).limit(5);
-      final libraryData = await _supabase.from('biblioteca').select().eq('user_id', user.id);
+      final playedData = await _supabaseService.getLibraryByStatus(GameStatus.jaJoguei);
+      final wishlistData = await _supabaseService.getLibraryByStatus(GameStatus.pretendeJogar);
+      final droppedData = await _supabaseService.getLibraryByStatus(GameStatus.dropado);
       
       if (!mounted) return;
       setState(() {
         _topFavorites = List<Map<String, dynamic>>.from(favoritesData);
-        _playedGames = libraryData.where((g) => g['status'] == GameStatus.jaJoguei).toList();
-        _wishlistGames = libraryData.where((g) => g['status'] == GameStatus.pretendeJogar).toList();
-        _droppedGames = libraryData.where((g) => g['status'] == GameStatus.dropado).toList();
+        _playedGames = List<Map<String, dynamic>>.from(playedData);
+        _wishlistGames = List<Map<String, dynamic>>.from(wishlistData);
+        _droppedGames = List<Map<String, dynamic>>.from(droppedData);
         _isLoading = false;
       });
     } catch (e) {
