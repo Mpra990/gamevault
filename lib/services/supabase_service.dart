@@ -112,60 +112,46 @@ class SupabaseService {
   }
 
   // ============================================================
-  // STATUS JOGO (Jogando, Zerado, etc)
+  // BIBLIOTECA (status de jogos)
   // ============================================================
 
-  Future<List<StatusJogo>> getUserGameStatus() async {
+  Future<List<Map<String, dynamic>>> getUserLibrary() async {
     final uid = currentUserId;
     if (uid == null) return [];
 
     final response = await _client
-        .from('status_jogo')
+        .from('biblioteca')
         .select()
-        .eq('usuario_id', uid);
-    return (response as List).map((e) => StatusJogo.fromJson(e)).toList();
+        .eq('user_id', uid);
+
+    return List<Map<String, dynamic>>.from(response as List);
   }
 
-  Future<StatusJogo?> getGameStatus(int rawgGameId) async {
+  Future<void> updateGameStatus(String gameId, String status, String gameImage) async {
     final uid = currentUserId;
-    if (uid == null) return null;
+    if (uid == null) return;
 
-    try {
-      final response = await _client
-          .from('status_jogo')
-          .select()
-          .eq('usuario_id', uid)
-          .eq('rawg_game_id', rawgGameId)
-          .single();
-      return StatusJogo.fromJson(response);
-    } catch (e) {
-      return null;
-    }
+    final dynamic parsedGameId = int.tryParse(gameId) ?? gameId;
+
+    await _client.from('biblioteca').upsert({
+      'user_id': uid,
+      'game_id': parsedGameId,
+      'status': status,
+      'game_image': gameImage,
+    }, onConflict: 'user_id, game_id');
   }
 
-  Future<StatusJogo> updateGameStatus(
-    int rawgGameId,
-    StatusJogoEnum status, {
-    String? rawgSlug,
-  }) async {
+  Future<List<Map<String, dynamic>>> getLibraryByStatus(String status) async {
     final uid = currentUserId;
-    if (uid == null) throw Exception("Usuário não autenticado");
-
-    final data = {
-      'usuario_id': uid,
-      'rawg_game_id': rawgGameId,
-      'rawg_slug': rawgSlug,
-      'status': status.value,
-      'atualizado_em': DateTime.now().toIso8601String(),
-    };
+    if (uid == null) return [];
 
     final response = await _client
-        .from('status_jogo')
-        .upsert(data) // Upsert faz o Update ou Insert automaticamente
+        .from('biblioteca')
         .select()
-        .single();
+        .eq('user_id', uid)
+        .eq('status', status);
 
-    return StatusJogo.fromJson(response);
+    return List<Map<String, dynamic>>.from(response as List);
   }
 
   // ============================================================
@@ -173,7 +159,7 @@ class SupabaseService {
   // ============================================================
 
   Future<Avaliacao> upsertAvaliacao(
-    int rawgGameId, {
+    int gameId, {
     required int nota,
     String? comentario,
     String? rawgSlug,
@@ -182,8 +168,8 @@ class SupabaseService {
     if (uid == null) throw Exception("Usuário não autenticado");
 
     final data = {
-      'usuario_id': uid,
-      'rawg_game_id': rawgGameId,
+      'user_id': uid,
+      'game_id': gameId,
       'nota': nota,
       'comentario': comentario,
       'rawg_slug': rawgSlug,
@@ -199,14 +185,14 @@ class SupabaseService {
     return Avaliacao.fromJson(response);
   }
 
-  Future<void> deleteAvaliacao(int rawgGameId) async {
+  Future<void> deleteAvaliacao(int gameId) async {
     final uid = currentUserId;
     if (uid == null) return;
 
     await _client
         .from('avaliacoes')
         .delete()
-        .eq('usuario_id', uid)
-        .eq('rawg_game_id', rawgGameId);
+        .eq('user_id', uid)
+        .eq('game_id', gameId);
   }
 }
