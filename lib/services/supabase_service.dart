@@ -127,18 +127,21 @@ class SupabaseService {
     return List<Map<String, dynamic>>.from(response as List);
   }
 
-  Future<void> updateGameStatus(String gameId, String status, String gameImage) async {
+  Future<void> updateGameStatus(String gameId, String status, String gameImage, {int? userRating}) async {
     final uid = currentUserId;
     if (uid == null) return;
 
     final dynamic parsedGameId = int.tryParse(gameId) ?? gameId;
 
-    await _client.from('biblioteca').upsert({
+    final data = {
       'user_id': uid,
       'game_id': parsedGameId,
       'status': status,
       'game_image': gameImage,
-    }, onConflict: 'user_id, game_id');
+      if (userRating != null) 'user_rating': userRating,
+    };
+
+    await _client.from('biblioteca').upsert(data, onConflict: 'user_id, game_id');
   }
 
   Future<List<Map<String, dynamic>>> getLibraryByStatus(String status) async {
