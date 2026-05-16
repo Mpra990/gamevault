@@ -3,14 +3,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class FavoriteButton extends StatefulWidget {
   final int gameId;
-  final String name;
-  final String image;
+  final String gameName;
+  final String? gameImage;
 
   const FavoriteButton({
     super.key,
     required this.gameId,
-    required this.name,
-    required this.image,
+    required this.gameName,
+    this.gameImage,
   });
 
   @override
@@ -18,8 +18,9 @@ class FavoriteButton extends StatefulWidget {
 }
 
 class _FavoriteButtonState extends State<FavoriteButton> {
-  bool isFavorite = false;
-  final supabase = Supabase.instance.client;
+  final SupabaseClient _supabase = Supabase.instance.client;
+  bool _isFavorite = false;
+  bool _isProcessing = false;
 
   @override
   void initState() {
@@ -27,60 +28,65 @@ class _FavoriteButtonState extends State<FavoriteButton> {
     _checkIfFavorite();
   }
 
-  // Verifica se o jogo já está nos favoritos ao carregar a tela
   Future<void> _checkIfFavorite() async {
-    final user = supabase.auth.currentUser;
+    final user = _supabase.auth.currentUser;
     if (user == null) return;
 
     try {
-      final data = await supabase
+      final response = await _supabase
           .from('favoritos')
           .select()
           .eq('user_id', user.id)
           .eq('game_id', widget.gameId)
           .maybeSingle();
 
-      if (mounted && data != null) {
-        setState(() => isFavorite = true);
+      if (mounted) {
+        setState(() {
+          _isFavorite = response != null;
+        });
       }
     } catch (e) {
-      debugPrint("Erro ao verificar favorito: $e");
+      debugPrint('Erro ao checar favorito: $e');
     }
   }
 
   Future<void> _toggleFavorite() async {
-    final user = supabase.auth.currentUser;
+    final user = _supabase.auth.currentUser;
+    if (user == null || _isProcessing) return;
 
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Faça login para favoritar!")),
-      );
-      return;
-    }
+    setState(() => _isProcessing = true);
 
     try {
-      if (isFavorite) {
-        // Remover dos favoritos
-        await supabase
+      if (_isFavorite) {
+        await _supabase
             .from('favoritos')
             .delete()
             .eq('user_id', user.id)
             .eq('game_id', widget.gameId);
+        
+        if (!mounted) return;
+        setState(() {
+          _isFavorite = false;
+        });
       } else {
-        // Adicionar aos favoritos
-        await supabase.from('favoritos').insert({
+        await _supabase.from('favoritos').insert({
           'user_id': user.id,
           'game_id': widget.gameId,
-          'game_name': widget.name,
-          'game_image': widget.image,
+          'game_name': widget.gameName,
+          'game_image': widget.gameImage,
+        });
+
+        if (!mounted) return;
+        setState(() {
+          _isFavorite = true;
         });
       }
-
-      setState(() => isFavorite = !isFavorite);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Erro ao salvar: $e")));
+      debugPrint('Erro ao alternar favorito: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
     }
   }
 
@@ -88,10 +94,11 @@ class _FavoriteButtonState extends State<FavoriteButton> {
   Widget build(BuildContext context) {
     return IconButton(
       icon: Icon(
-        isFavorite ? Icons.favorite : Icons.favorite_border,
-        color: isFavorite ? Colors.red : Colors.white,
+        _isFavorite ? Icons.favorite : Icons.favorite_border,
+        color: _isFavorite ? Colors.red : Colors.white,
+        size: 28,
       ),
-      onPressed: _toggleFavorite,
+      onPressed: _isProcessing ? null : _toggleFavorite,
     );
   }
 }

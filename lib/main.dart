@@ -1,20 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'screens/home_screen.dart';
+
+import 'theme/gamevault_theme.dart';
 import 'screens/login_screen.dart';
+import 'screens/register_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/profile_screen.dart';
+import 'screens/settings_screen.dart';
 
-void main() async {
-  // Garante a inicialização dos widgets
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint("Aviso: Arquivo .env não encontrado.");
+  }
 
-  // Carrega as variáveis do .env
-  await dotenv.load(fileName: ".env");
-
-  // Inicializa o Supabase
   await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL'] ?? '',
-    anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+    url: dotenv.env['SUPABASE_URL'] ?? 'COLE_SUA_URL_AQUI_SE_NAO_USAR_ENV',
+    anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? 'COLE_SUA_KEY_AQUI_SE_NAO_USAR_ENV',
   );
 
   runApp(const MyApp());
@@ -25,18 +31,20 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Verifica se o usuário já está logado
     final session = Supabase.instance.client.auth.currentSession;
 
     return MaterialApp(
       title: 'GameVault',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        primarySwatch: Colors.purple,
-        useMaterial3: true,
-      ),
-      home: session == null ? const LoginScreen() : const HomeScreen(),
+      theme: GameVaultTheme.darkTheme,
+      initialRoute: session != null ? '/' : '/login',
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/': (context) => const HomeScreen(),
+        '/profile': (context) => const ProfileScreen(),
+        '/settings': (context) => const SettingsScreen(),
+      },
     );
   }
 }
