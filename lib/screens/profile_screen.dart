@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../constants/game_status.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -49,9 +50,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       if (!mounted) return;
       setState(() {
         _topFavorites = List<Map<String, dynamic>>.from(favoritesData);
-        _playedGames = libraryData.where((g) => g['status'] == 'Já joguei').toList();
-        _wishlistGames = libraryData.where((g) => g['status'] == 'Pretendo jogar').toList();
-        _droppedGames = libraryData.where((g) => g['status'] == 'Dropado').toList();
+        _playedGames = libraryData.where((g) => g['status'] == GameStatus.jaJoguei).toList();
+        _wishlistGames = libraryData.where((g) => g['status'] == GameStatus.pretendeJogar).toList();
+        _droppedGames = libraryData.where((g) => g['status'] == GameStatus.dropado).toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -169,7 +170,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                     delegate: _SliverAppBarDelegate(
                       TabBar(
                         controller: _tabController, 
-                        tabs: const [Tab(text: "Já joguei"), Tab(text: "Pretendo"), Tab(text: "Dropados")]
+                        tabs: [Tab(text: GameStatus.jaJoguei), const Tab(text: "Pretendo"), const Tab(text: "Dropados")]
                       )
                     )
                   ),
