@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../constants/game_status.dart';
 import '../services/api_service.dart';
 
 class DetailsScreen extends StatefulWidget {
@@ -195,9 +196,9 @@ class _DetailsScreenState extends State<DetailsScreen> {
                     dropdownColor: const Color(0xFF1C2228),
                     items: const [
                       DropdownMenuItem(value: 'Nenhum', child: Text('Adicionar à Lista...')),
-                      DropdownMenuItem(value: 'Já joguei', child: Text('✅ Já joguei')),
-                      DropdownMenuItem(value: 'Pretendo jogar', child: Text('🎯 Pretendo jogar')),
-                      DropdownMenuItem(value: 'Dropado', child: Text('❌ Dropado')),
+                      DropdownMenuItem(value: GameStatus.jaJoguei, child: Text('✅ ${GameStatus.jaJoguei}')),
+                      DropdownMenuItem(value: GameStatus.pretendeJogar, child: Text('🎯 ${GameStatus.pretendeJogar}')),
+                      DropdownMenuItem(value: GameStatus.dropado, child: Text('❌ ${GameStatus.dropado}')),
                     ],
                     onChanged: (val) => _updateStatus(val ?? 'Nenhum'),
                   ),
