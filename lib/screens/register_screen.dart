@@ -16,6 +16,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final Color _surfaceColor = const Color(0xFF1A1D21);
 
   Future<void> _register() async {
+    if (_emailController.text.trim().isEmpty || _passwordController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Preencha todos os campos")));
+      return;
+    }
+
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(_emailController.text.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Insira um e-mail válido")));
+      return;
+    }
+
+    if (_passwordController.text.trim().length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("A senha deve ter pelo menos 6 caracteres")));
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       await Supabase.instance.client.auth.signUp(

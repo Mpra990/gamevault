@@ -69,7 +69,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
       if (!originalState) {
         await _supabase.from('favoritos').insert({
           'user_id': user.id, 'game_id': widget.gameId,
-          'game_name': _gameDetails!['name'], 'game_image': _gameDetails!['background_image'],
+          'game_name': _gameDetails!['name'] ?? 'Sem nome', 'game_image': _gameDetails!['background_image'] ?? '',
         });
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text("Adicionado aos Favoritos! 💜"), backgroundColor: _accentColor));
       } else {
@@ -84,13 +84,16 @@ class _DetailsScreenState extends State<DetailsScreen> {
   Future<void> _updateStatus(String status) async {
     final user = _supabase.auth.currentUser;
     if (user == null || _gameDetails == null) return;
+    
     final originalStatus = _currentStatus;
     setState(() => _currentStatus = status);
+    
     try {
       if (status == 'Nenhum') {
         await _supabase.from('biblioteca').delete().eq('user_id', user.id).eq('game_id', widget.gameId);
         setState(() => _userStars = 0);
       } else {
+        // Upsert inteligente
         await _supabase.from('biblioteca').upsert({
           'user_id': user.id, 
           'game_id': widget.gameId,
@@ -100,7 +103,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
           'user_rating': _userStars > 0 ? _userStars : null
         }, onConflict: 'user_id, game_id');
         
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Salvo com sucesso! ✅"), backgroundColor: Color(0xFF00E054)));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Salvo em: $status ✅"), backgroundColor: const Color(0xFF00E054)));
       }
     } catch (e) {
       if (!mounted) return;
@@ -108,10 +111,9 @@ class _DetailsScreenState extends State<DetailsScreen> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          backgroundColor: _surfaceColor,
-          title: const Text("Erro ao Salvar ❌", style: TextStyle(color: Colors.white)),
-          content: Text("O banco de dados recusou: \n\n$e", style: const TextStyle(color: Colors.white70)),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text("OK", style: TextStyle(color: _accentColor)))],
+          title: const Text("Erro ao Salvar ❌"),
+          content: Text("O banco de dados recusou: \n\n$e"),
+          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("OK", style: TextStyle(color: Color(0xFFD500F9))))],
         )
       );
     }
@@ -126,18 +128,22 @@ class _DetailsScreenState extends State<DetailsScreen> {
     }
     setState(() => _userStars = stars);
     try {
+      // Upsert inteligente para as estrelas
       await _supabase.from('biblioteca').upsert({
-        'user_id': user.id, 'game_id': widget.gameId,
-        'game_name': _gameDetails!['name'], 'game_image': _gameDetails!['background_image'],
-        'status': _currentStatus, 'user_rating': stars
-      });
+        'user_id': user.id, 
+        'game_id': widget.gameId,
+        'game_name': _gameDetails!['name'] ?? 'Sem nome', 
+        'game_image': _gameDetails!['background_image'] ?? '', 
+        'status': _currentStatus, 
+        'user_rating': stars
+      }, onConflict: 'user_id, game_id');
+      
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Avaliação salva! ⭐"), backgroundColor: Color(0xFF00E054)));
     } catch (e) {
       debugPrint("Erro estrelas: $e");
     }
   }
 
-  // AQUI ESTÁ A FUNÇÃO QUE FALTAVA PARA LIMPAR A SINOPSE!
   String _cleanDescription(String? htmlDescription) {
     if (htmlDescription == null) return 'Sem descrição disponível.';
     RegExp exp = RegExp(r"<[^>]*>", multiLine: true, caseSensitive: true);
@@ -173,7 +179,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                   Text("Lançamento: ${_gameDetails!['released'] ?? 'N/A'}", style: const TextStyle(color: Colors.white60)),
                   const SizedBox(height: 20),
                   
-                  const Text("SUA AVALIAÇÃO", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white38, letterSpacing: 1.2)),
+                  const Text("SUA AVALIAÇÃO", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white38)),
                   Row(
                     children: List.generate(5, (index) {
                       return IconButton(
