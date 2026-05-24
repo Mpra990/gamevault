@@ -19,6 +19,9 @@ class _DetailsScreenState extends State<DetailsScreen> {
   String _currentStatus = 'Nenhum';
   int _userStars = 0;
 
+  final Color _accentColor = const Color(0xFF00E5FF);
+  final Color _surfaceColor = const Color(0xFF1A1D21);
+
   @override
   void initState() {
     super.initState();
@@ -68,7 +71,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
           'user_id': user.id, 'game_id': widget.gameId,
           'game_name': _gameDetails!['name'], 'game_image': _gameDetails!['background_image'],
         });
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Adicionado aos Favoritos! 💜"), backgroundColor: Color(0xFFD500F9)));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text("Adicionado aos Favoritos! 💜"), backgroundColor: _accentColor));
       } else {
         await _supabase.from('favoritos').delete().eq('user_id', user.id).eq('game_id', widget.gameId);
       }
@@ -89,15 +92,28 @@ class _DetailsScreenState extends State<DetailsScreen> {
         setState(() => _userStars = 0);
       } else {
         await _supabase.from('biblioteca').upsert({
-          'user_id': user.id, 'game_id': widget.gameId,
-          'game_name': _gameDetails!['name'], 'game_image': _gameDetails!['background_image'], 
-          'status': status, 'user_rating': _userStars > 0 ? _userStars : null
-        });
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Salvo em: $status ✅"), backgroundColor: const Color(0xFF00E054)));
+          'user_id': user.id, 
+          'game_id': widget.gameId,
+          'game_name': _gameDetails!['name'] ?? 'Sem nome', 
+          'game_image': _gameDetails!['background_image'] ?? '', 
+          'status': status, 
+          'user_rating': _userStars > 0 ? _userStars : null
+        }, onConflict: 'user_id, game_id');
+        
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Salvo com sucesso! ✅"), backgroundColor: Color(0xFF00E054)));
       }
     } catch (e) {
       if (!mounted) return;
       setState(() => _currentStatus = originalStatus);
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: _surfaceColor,
+          title: const Text("Erro ao Salvar ❌", style: TextStyle(color: Colors.white)),
+          content: Text("O banco de dados recusou: \n\n$e", style: const TextStyle(color: Colors.white70)),
+          actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text("OK", style: TextStyle(color: _accentColor)))],
+        )
+      );
     }
   }
 
@@ -130,18 +146,19 @@ class _DetailsScreenState extends State<DetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    if (_gameDetails == null) return const Scaffold(body: Center(child: Text("Erro ao carregar")));
+    if (_isLoading) return Scaffold(backgroundColor: Colors.black, body: Center(child: CircularProgressIndicator(color: _accentColor)));
+    if (_gameDetails == null) return const Scaffold(backgroundColor: Colors.black, body: Center(child: Text("Erro ao carregar", style: TextStyle(color: Colors.white))));
 
     return Scaffold(
+      backgroundColor: Colors.black,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Stack(
               children: [
-                Image.network(_gameDetails!['background_image'] ?? 'https://via.placeholder.com/400x600', width: double.infinity, height: 300, fit: BoxFit.cover, errorBuilder: (_,__,___) => Container(color: const Color(0xFF1C2228), height: 300, child: const Center(child: Icon(Icons.broken_image, color: Colors.white24)))),
-                Positioned.fill(child: Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Color(0xFF101418)])))),
+                Image.network(_gameDetails!['background_image'] ?? 'https://via.placeholder.com/400x600', width: double.infinity, height: 300, fit: BoxFit.cover, errorBuilder: (_,__,___) => Container(color: _surfaceColor, height: 300, child: const Center(child: Icon(Icons.broken_image, color: Colors.white24)))),
+                Positioned.fill(child: Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black])))),
                 Positioned(top: 40, left: 16, child: CircleAvatar(backgroundColor: Colors.black54, child: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)))),
                 Positioned(top: 40, right: 16, child: CircleAvatar(backgroundColor: Colors.black54, child: IconButton(icon: Icon(_isFavorite ? Icons.favorite : Icons.favorite_border, color: _isFavorite ? Colors.red : Colors.white), onPressed: _toggleFavorite))),
               ],
@@ -151,18 +168,17 @@ class _DetailsScreenState extends State<DetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_gameDetails!['name'] ?? '', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+                  Text(_gameDetails!['name'] ?? '', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white)),
                   const SizedBox(height: 8),
                   Text("Lançamento: ${_gameDetails!['released'] ?? 'N/A'}", style: const TextStyle(color: Colors.white60)),
                   const SizedBox(height: 20),
                   
-                  // Sistema Interativo de Estrelas
-                  const Text("SUA AVALIAÇÃO", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white38)),
+                  const Text("SUA AVALIAÇÃO", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white38, letterSpacing: 1.2)),
                   Row(
                     children: List.generate(5, (index) {
                       return IconButton(
                         icon: Icon(index < _userStars ? Icons.star : Icons.star_border),
-                        color: const Color(0xFFD500F9),
+                        color: _accentColor,
                         iconSize: 32,
                         onPressed: () => _updateStars(index + 1),
                       );
@@ -170,13 +186,19 @@ class _DetailsScreenState extends State<DetailsScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  const Text("MEU STATUS", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white38)),
+                  const Text("MEU STATUS", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white38, letterSpacing: 1.2)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     value: _currentStatus,
-                    dropdownColor: const Color(0xFF1C2228),
+                    dropdownColor: _surfaceColor,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      fillColor: _surfaceColor,
+                      filled: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
                     items: const [
-                      DropdownMenuItem(value: 'Nenhum', child: Text('Adicionar à Lista...')),
+                      DropdownMenuItem(value: 'Nenhum', child: Text('Adicionar à Lista...', style: TextStyle(color: Colors.white54))),
                       DropdownMenuItem(value: 'Já joguei', child: Text('✅ Já joguei')),
                       DropdownMenuItem(value: 'Pretendo jogar', child: Text('🎯 Pretendo jogar')),
                       DropdownMenuItem(value: 'Dropado', child: Text('❌ Dropado')),
@@ -184,7 +206,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                     onChanged: (val) => _updateStatus(val ?? 'Nenhum'),
                   ),
                   const SizedBox(height: 24),
-                  const Text("SINOPSE", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white38)),
+                  const Text("SINOPSE", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white38, letterSpacing: 1.2)),
                   const SizedBox(height: 8),
                   Text(_cleanDescription(_gameDetails!['description'] ?? _gameDetails!['description_raw']), style: const TextStyle(fontSize: 15, height: 1.5, color: Colors.white70)),
                 ],

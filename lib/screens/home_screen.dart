@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/api_service.dart';
 import 'details_screen.dart';
 
@@ -19,6 +20,11 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadMore = false;
   int _currentPage = 1;
   double _minRatingFilter = 0; 
+
+  // --- Paleta de Cores Moderna (inspirada na Epic) ---
+  final Color _accentColor = const Color(0xFF00E5FF); // Azul Neon
+  final Color _surfaceColor = const Color(0xFF1A1D21); // Cinza Escuro Premium
+  final Color _textColorSecondary = Colors.white60; // Cor secundária para textos
 
   @override
   void initState() {
@@ -123,6 +129,16 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _signOut() async {
+    try {
+      await Supabase.instance.client.auth.signOut();
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+    } catch (e) {
+      debugPrint("Erro ao sair: $e");
+    }
+  }
+
   void _openFilterDialog() {
     showDialog(
       context: context,
@@ -131,7 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFF1C2228),
+              backgroundColor: _surfaceColor,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               title: const Text("Filtro de Nota", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               content: Column(
@@ -141,13 +157,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text("Nota mínima: ", style: TextStyle(color: Colors.white70, fontSize: 16)),
-                      Text(tempRating.toStringAsFixed(0), style: const TextStyle(color: Color(0xFFD500F9), fontWeight: FontWeight.bold, fontSize: 18)),
+                      Text(tempRating.toStringAsFixed(0), style: TextStyle(color: _accentColor, fontWeight: FontWeight.bold, fontSize: 18)),
                     ],
                   ),
                   Slider(
                     value: tempRating,
                     min: 0, max: 100, divisions: 100,
-                    activeColor: const Color(0xFFD500F9), inactiveColor: Colors.white24,
+                    activeColor: _accentColor, inactiveColor: Colors.white24,
                     onChanged: (value) => setModalState(() => tempRating = value),
                   ),
                 ],
@@ -160,11 +176,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _accentColor,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
                         onPressed: () {
                           _applyLocalRatingFilter(tempRating); 
                           Navigator.pop(context);
                         },
-                        child: const Text("Aplicar"),
+                        child: const Text("Aplicar", style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],
@@ -180,18 +201,68 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black, // Fundo preto puro para visual mais premium
       appBar: AppBar(
-        title: const Row(
+        backgroundColor: Colors.black,
+        title: Row(
           mainAxisSize: MainAxisSize.min,
-          children: [Text("GameVault"), SizedBox(width: 8), Icon(Icons.sports_esports, color: Color(0xFFD500F9))],
+          children: [const Text("GameVault"), const SizedBox(width: 8), Icon(Icons.sports_esports, color: _accentColor)],
         ),
         actions: [
           IconButton(icon: const Icon(Icons.person_outline, size: 26), onPressed: () => Navigator.pushNamed(context, '/profile')),
         ],
       ),
+      drawer: Drawer(
+        backgroundColor: Colors.black,
+        child: Column(
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(color: _surfaceColor),
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.sports_esports, color: _accentColor, size: 32),
+                    const SizedBox(width: 12),
+                    const Text(
+                      "GAMEVAULT",
+                      style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.home, color: Colors.white),
+              title: const Text("Início", style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings, color: Colors.white),
+              title: const Text("Configurações", style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/settings');
+              },
+            ),
+            const Spacer(),
+            const Divider(color: Colors.white24),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.redAccent),
+              title: const Text("Sair da Conta", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+              onTap: () {
+                Navigator.pop(context);
+                _signOut();
+              },
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: _accentColor))
           : RefreshIndicator(
+              color: _accentColor,
               onRefresh: _loadInitialGames,
               child: SingleChildScrollView(
                 controller: _scrollController,
@@ -203,20 +274,36 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            onSubmitted: _searchGames,
-                            decoration: InputDecoration(
-                              hintText: "Busca de jogos pelo nome...",
-                              prefixIcon: const Icon(Icons.search),
-                              suffixIcon: IconButton(icon: const Icon(Icons.clear), onPressed: () { _searchController.clear(); _loadInitialGames(); }),
+                          child: SizedBox(
+                            height: 54, // Altura fixada para alinhar perfeitamente
+                            child: TextField(
+                              controller: _searchController,
+                              onSubmitted: _searchGames,
+                              style: const TextStyle(color: Colors.white), // Texto digitado na cor branca
+                              textAlignVertical: TextAlignVertical.center,
+                              decoration: InputDecoration(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                                hintText: "Busca de jogos pelo nome...",
+                                hintStyle: const TextStyle(color: Colors.white38),
+                                fillColor: _surfaceColor, 
+                                filled: true,
+                                prefixIcon: Icon(Icons.search, color: _accentColor),
+                                suffixIcon: IconButton(icon: const Icon(Icons.clear), onPressed: () { _searchController.clear(); _loadInitialGames(); }, color: _accentColor,),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), 
+                              ),
                             ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Container(
-                          decoration: BoxDecoration(color: const Color(0xFF1C2228), borderRadius: BorderRadius.circular(12)),
-                          child: IconButton(icon: const Icon(Icons.tune, color: Color(0xFFD500F9)), onPressed: _openFilterDialog),
+                          height: 54, // Exatamente a mesma altura da barra de busca
+                          width: 54,
+                          decoration: BoxDecoration(color: _surfaceColor, borderRadius: BorderRadius.circular(12)),
+                          child: IconButton(
+                            icon: Icon(Icons.tune, color: _accentColor), 
+                            onPressed: _openFilterDialog, 
+                            iconSize: 26, 
+                          ),
                         ),
                       ],
                     ),
@@ -224,53 +311,65 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text("EXPLORAR JOGOS", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white60, letterSpacing: 1.5)),
-                        if (_minRatingFilter > 0) Text("Nota ≥ ${_minRatingFilter.toStringAsFixed(0)}", style: const TextStyle(fontSize: 12, color: Color(0xFFD500F9), fontWeight: FontWeight.bold)),
+                        Text("EXPLORAR JOGOS", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _textColorSecondary, letterSpacing: 1.5)),
+                        if (_minRatingFilter > 0) Text("Nota ≥ ${_minRatingFilter.toStringAsFixed(0)}", style: TextStyle(fontSize: 12, color: _accentColor, fontWeight: FontWeight.bold)),
                       ],
                     ),
                     const SizedBox(height: 12),
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.7, crossAxisSpacing: 16, mainAxisSpacing: 16),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.7, crossAxisSpacing: 16, mainAxisSpacing: 24), 
                       itemCount: _filteredGames.length,
                       itemBuilder: (context, index) {
                         final game = _filteredGames[index];
                         if (game == null) return const SizedBox.shrink();
                         double rawRating = game['rating'] != null ? double.parse(game['rating'].toString()) : 0;
                         
-                        // O PONTO E VÍRGULA QUE FALTAVA ESTÁ BEM AQUI NESSA LINHA ABAIXO!
                         int displayRating = rawRating <= 5 ? (rawRating * 20).round() : rawRating.round();
 
                         return GestureDetector(
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => DetailsScreen(gameId: game['id']))),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Stack(
-                              children: [
-                                Positioned.fill(
-                                  child: Image.network(game['background_image'] ?? 'https://via.placeholder.com/400x600', fit: BoxFit.cover, errorBuilder: (_,__,___) => const Icon(Icons.broken_image)),
+                          child: Container( 
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [ 
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.4),
+                                  spreadRadius: 1,
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 6),
                                 ),
-                                Positioned.fill(child: Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black87])))),
-                                Positioned(
-                                  top: 12, right: 12,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                    decoration: BoxDecoration(color: const Color(0xFF00E054), borderRadius: BorderRadius.circular(6)),
-                                    child: Text(displayRating == 0 ? 'N/A' : displayRating.toString(), style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11)),
-                                  ),
-                                ),
-                                Positioned(bottom: 12, left: 12, right: 12, child: Text(game['name'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1)),
                               ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Stack(
+                                children: [
+                                  Positioned.fill(
+                                    child: Image.network(game['background_image'] ?? 'https://via.placeholder.com/400x600', fit: BoxFit.cover, errorBuilder: (_,__,___) => const Icon(Icons.broken_image, color: Colors.white24,)),
+                                  ),
+                                  Positioned.fill(child: Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black87])))),
+                                  Positioned(
+                                    top: 12, right: 12,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                      decoration: BoxDecoration(color: const Color(0xFF00E054), borderRadius: BorderRadius.circular(6)),
+                                      child: Text(displayRating == 0 ? 'N/A' : displayRating.toString(), style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11)),
+                                    ),
+                                  ),
+                                  Positioned(bottom: 12, left: 12, right: 12, child: Text(game['name'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1)),
+                                ],
+                              ),
                             ),
                           ),
                         );
                       },
                     ),
                     if (_isLoadMore)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24),
-                        child: Center(child: CircularProgressIndicator(color: Color(0xFFD500F9))),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 32), 
+                        child: Center(child: CircularProgressIndicator(color: _accentColor)),
                       ),
                   ],
                 ),
