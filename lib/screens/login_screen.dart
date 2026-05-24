@@ -12,6 +12,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
+  final Color _accentColor = const Color(0xFF00E5FF);
+  final Color _surfaceColor = const Color(0xFF1A1D21);
+
   Future<void> _login() async {
     if (_emailController.text.trim().isEmpty || _passwordController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Preencha todos os campos")));
@@ -43,33 +46,56 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.sports_esports, size: 80, color: Color(0xFFD500F9)),
+              Icon(Icons.sports_esports, size: 80, color: _accentColor),
               const SizedBox(height: 16),
-              const Text("GAMEVAULT", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 2)),
+              const Text("GAMEVAULT", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 2, color: Colors.white)),
               const SizedBox(height: 48),
               TextField(
                 controller: _emailController,
-                decoration: const InputDecoration(hintText: 'Email', prefixIcon: Icon(Icons.email)),
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Email', 
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  prefixIcon: Icon(Icons.email, color: _accentColor),
+                  fillColor: _surfaceColor,
+                  filled: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _passwordController,
-                decoration: const InputDecoration(hintText: 'Senha', prefixIcon: Icon(Icons.lock)),
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Senha', 
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  prefixIcon: Icon(Icons.lock, color: _accentColor),
+                  fillColor: _surfaceColor,
+                  filled: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
                 obscureText: true,
               ),
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
+                height: 50,
                 child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _accentColor,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
                   onPressed: _isLoading ? null : _login,
-                  child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("ENTRAR"),
+                  child: _isLoading ? const CircularProgressIndicator(color: Colors.black) : const Text("ENTRAR", style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(height: 16),

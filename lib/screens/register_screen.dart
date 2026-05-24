@@ -12,6 +12,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
+  final Color _accentColor = const Color(0xFF00E5FF);
+  final Color _surfaceColor = const Color(0xFF1A1D21);
+
   Future<void> _register() async {
     if (_emailController.text.trim().isEmpty || _passwordController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Preencha todos os campos")));
@@ -49,28 +52,55 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("CADASTRO")),
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        title: const Text("CADASTRO", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.2)),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(hintText: 'Email', prefixIcon: Icon(Icons.email)),
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Email', 
+                hintStyle: const TextStyle(color: Colors.white38),
+                prefixIcon: Icon(Icons.email, color: _accentColor),
+                fillColor: _surfaceColor,
+                filled: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _passwordController,
-              decoration: const InputDecoration(hintText: 'Senha (mínimo 6 caracteres)', prefixIcon: Icon(Icons.lock)),
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Senha (mínimo 6 caracteres)', 
+                hintStyle: const TextStyle(color: Colors.white38),
+                prefixIcon: Icon(Icons.lock, color: _accentColor),
+                fillColor: _surfaceColor,
+                filled: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
               obscureText: true,
             ),
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
+              height: 50,
               child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _accentColor,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
                 onPressed: _isLoading ? null : _register,
-                child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("CRIAR CONTA"),
+                child: _isLoading ? const CircularProgressIndicator(color: Colors.black) : const Text("CRIAR CONTA", style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
           ],

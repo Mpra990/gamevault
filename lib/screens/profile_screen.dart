@@ -19,6 +19,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   String _username = "PLAYER";
   String _avatarUrl = "";
 
+  final Color _accentColor = const Color(0xFF00E5FF);
+  final Color _surfaceColor = const Color(0xFF1A1D21);
+
   @override
   void initState() {
     super.initState();
@@ -60,7 +63,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     }
   }
 
-  // Função para evitar erro de tela quebrada caso a imagem venha vazia
   String _getValidImageUrl(String? url) {
     if (url == null || url.trim().isEmpty) {
       return 'https://via.placeholder.com/400x600?text=Sem+Capa';
@@ -71,23 +73,13 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text("PERFIL GAMER"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings), 
-            onPressed: () async {
-              final result = await Navigator.pushNamed(context, '/settings');
-              if (result == true) { 
-                setState(() => _isLoading = true); 
-                _loadProfileAndLists(); 
-              }
-            }
-          )
-        ],
+        backgroundColor: Colors.black,
+        title: const Text("PERFIL GAMER", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.2)),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFD500F9)))
+          ? Center(child: CircularProgressIndicator(color: _accentColor))
           : NestedScrollView(
               headerSliverBuilder: (context, innerBoxIsScrolled) {
                 return [
@@ -96,21 +88,22 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(24.0), color: const Color(0xFF1C2228),
+                          padding: const EdgeInsets.all(24.0), 
+                          color: _surfaceColor,
                           child: Row(
                             children: [
                               CircleAvatar(
-                                radius: 36, backgroundColor: const Color(0xFFD500F9), 
+                                radius: 36, backgroundColor: _accentColor, 
                                 backgroundImage: _avatarUrl.isNotEmpty ? NetworkImage(_avatarUrl) : null,
                                 child: _avatarUrl.isEmpty 
-                                  ? Text(_username.isNotEmpty ? _username[0].toUpperCase() : "P", style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)) 
+                                  ? Text(_username.isNotEmpty ? _username[0].toUpperCase() : "P", style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black)) 
                                   : null,
                               ),
                               const SizedBox(width: 20),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(_username, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                                  Text(_username, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
                                   const SizedBox(height: 8),
                                   Row(
                                     children: [
@@ -129,7 +122,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text("TOP 5 FAVORITOS", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white60)),
+                              const Text("TOP 5 FAVORITOS", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white60, letterSpacing: 1.2)),
                               const SizedBox(height: 12),
                               _topFavorites.isEmpty
                                   ? const Text("Nenhum favorito selecionado.", style: TextStyle(color: Colors.white24))
@@ -143,13 +136,16 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                                           return Container(
                                             width: 95, 
                                             margin: const EdgeInsets.only(right: 10), 
+                                            decoration: BoxDecoration(
+                                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]
+                                            ),
                                             child: ClipRRect(
                                               borderRadius: BorderRadius.circular(8),
                                               child: Image.network(
                                                 imageUrl,
                                                 fit: BoxFit.cover,
                                                 errorBuilder: (context, error, stackTrace) => Container(
-                                                  color: const Color(0xFF1C2228),
+                                                  color: _surfaceColor,
                                                   child: const Icon(Icons.broken_image, color: Colors.white24),
                                                 ),
                                               ),
@@ -169,6 +165,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                     delegate: _SliverAppBarDelegate(
                       TabBar(
                         controller: _tabController, 
+                        indicatorColor: _accentColor,
+                        labelColor: _accentColor,
+                        unselectedLabelColor: Colors.white38,
                         tabs: const [Tab(text: "Já joguei"), Tab(text: "Pretendo"), Tab(text: "Dropados")]
                       )
                     )
@@ -191,18 +190,23 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     if (gamesList.isEmpty) return const Center(child: Text("Nenhum jogo nesta categoria.", style: TextStyle(color: Colors.white38)));
     return GridView.builder(
       padding: const EdgeInsets.all(16), 
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.7, crossAxisSpacing: 10, mainAxisSpacing: 10),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.7, crossAxisSpacing: 12, mainAxisSpacing: 12),
       itemCount: gamesList.length,
       itemBuilder: (context, index) {
         final imageUrl = _getValidImageUrl(gamesList[index]['game_image']);
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(8), 
-          child: Image.network(
-            imageUrl, 
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
-              color: const Color(0xFF1C2228),
-              child: const Icon(Icons.broken_image, color: Colors.white24),
+        return Container(
+          decoration: BoxDecoration(
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 6, offset: const Offset(0, 3))]
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8), 
+            child: Image.network(
+              imageUrl, 
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: _surfaceColor,
+                child: const Icon(Icons.broken_image, color: Colors.white24),
+              ),
             ),
           ),
         );
@@ -210,7 +214,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildStatColumn(String value, String label) => Column(children: [Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), Text(label, style: const TextStyle(fontSize: 9, color: Colors.white38, fontWeight: FontWeight.bold))]);
+  Widget _buildStatColumn(String value, String label) => Column(children: [Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)), Text(label, style: const TextStyle(fontSize: 9, color: Colors.white38, fontWeight: FontWeight.bold))]);
 }
 
 class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
@@ -218,6 +222,6 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   _SliverAppBarDelegate(this._tabBar);
   @override double get minExtent => _tabBar.preferredSize.height;
   @override double get maxExtent => _tabBar.preferredSize.height;
-  @override Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => Container(color: const Color(0xFF101418), child: _tabBar);
+  @override Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => Container(color: Colors.black, child: _tabBar);
   @override bool shouldRebuild(_SliverAppBarDelegate oldDelegate) => false;
 }
